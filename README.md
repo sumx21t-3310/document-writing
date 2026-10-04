@@ -93,6 +93,7 @@ git clone https://github.com/sumx21t-3310/document-writing.git $HOME/.codex/skil
 | `rules/common.md` | 出力言語にかかわらず適用する、構成・文と段落・語の選び方の規則 |
 | `locales/ja.md` | 日本語の文体・語順・文の長さ・語彙・表記の規則 |
 | `reference/themes/<name>.yaml` | 文書の種類ごとの問い、見出しの型、受け入れ条件 |
+| `samples/` | テーマファイルごとのサンプル文書。一覧は [samples/README.md](samples/README.md) にある。スキルの動作には使わない |
 
 言語を足すときは、`locales/<言語>.md` を追加します。文書の種類を足すときは、`reference/themes/` に YAML を追加し、`SKILL.md` の一覧に行を足します。
 
