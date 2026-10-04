@@ -38,7 +38,15 @@ README、手順書、PR の本文、報告書をエージェントに書かせ�
 
 ## インストール
 
-エージェントのスキル用フォルダへ、リポジトリを clone します。
+[skills](https://www.skills.sh/) の CLI で入れるか、リポジトリを clone します。
+
+skills の CLI で入れる場合は、スキルを使うプロジェクトのフォルダで次を実行します。入れる先のエージェントは、CLI が表示する選択肢から選びます。
+
+```bash
+npx skills add sumx21t-3310/document-writing
+```
+
+clone で入れる場合は、エージェントのスキル用フォルダを clone 先にします。
 
 Claude Code の場合:
 
