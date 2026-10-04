@@ -1,54 +1,51 @@
-# wordfreq コマンドリファレンス
+# SKILL.md の frontmatter の項目と、分量の目安
 
-`wordfreq` 0.1.0 の引数、出力、終了コードの一覧です。値は [wordfreq/src/main.rs](wordfreq/src/main.rs) と、実行した結果から書いています。
+`SKILL.md` の frontmatter に書ける項目、スキルのフォルダの構成、分量の目安の一覧です。
+値は、2026-10-05 に読んだ [Agent Skills の仕様](https://agentskills.io/specification) から書いています。Anthropic の資料だけにある制約は、節を分けています。
 
-## 書式
+## frontmatter の項目
 
-```text
-wordfreq <FILE> [--top N]
-```
-
-## 引数とオプション
-
-| 名前 | 型 | 既定値 | 説明 | 例 |
+| 項目 | 必須 | 制約 | 説明 | 例 |
 | :-- | :-- | :-- | :-- | :-- |
-| `<FILE>` | ファイルのパス | なし（必須） | 単語を数えるファイル。UTF-8 のテキストを渡す | `sample.txt` |
-| `--top N` | 0 以上の整数 | `10` | 表示する単語の数。`<FILE>` の後ろに書く | `--top 3` |
+| `name` | 必須 | 1〜64文字。小文字の英字、数字、ハイフンだけ。先頭と末尾はハイフン以外。ハイフンを2つ続けない。フォルダ名と同じ文字列 | スキルの名前 | `pdf-processing` |
+| `description` | 必須 | 1〜1024文字 | スキルがすることと、使う場面 | `PDF からテキストを取り出す。PDF を扱うときに使う。` |
+| `license` | 任意 | 制約なし。短く書く | ライセンスの名前、または同梱したライセンスファイルの名前 | `Apache-2.0` |
+| `compatibility` | 任意 | 1〜500文字 | 動作に要る環境。対象の製品、必要なパッケージ、ネットワークの要否 | `Requires git and jq` |
+| `metadata` | 任意 | キーと値がどちらも文字列の対応表 | 仕様にない項目を置く場所 | `author: example-org` |
+| `allowed-tools` | 任意 | 空白で区切った文字列。実験的な項目 | 確認なしで使えるツール | `Bash(git:*) Read` |
 
-## 出力
+## フォルダの構成
 
-結果は標準出力に書きます。
+| 名前 | 必須 | 制約 | 説明 | 例 |
+| :-- | :-- | :-- | :-- | :-- |
+| `SKILL.md` | 必須 | YAML の frontmatter のあとに、Markdown の本文を書く | スキルの本体 | `pdf-processing/SKILL.md` |
+| `scripts/` | 任意 | 制約なし | エージェントが実行するコード | `scripts/extract.py` |
+| `references/` | 任意 | 制約なし | エージェントが要るときに読む資料 | `references/REFERENCE.md` |
+| `assets/` | 任意 | 制約なし | テンプレート、画像、データ | `assets/template.md` |
 
-| 行 | 形式 | 説明 | 例 |
-| :-- | :-- | :-- | :-- |
-| 1行目 | `lines: <行数>` | ファイルの行数 | `lines: 3` |
-| 2行目以降 | `<回数> <単語>` | 回数は6けたの幅で右に寄せる。単語1つにつき1行 | `     3 the` |
+## 分量の目安
 
-`wordfreq sample.txt --top 3` の出力は、次のとおりです。
+| 対象 | 読み込まれる時点 | 目安 | 説明 | 例 |
+| :-- | :-- | :-- | :-- | :-- |
+| `name` と `description` | エージェントの起動時。すべてのスキルの分を読む | 約100トークン | 呼ぶかどうかの判断に使う | frontmatter の2行 |
+| `SKILL.md` の本文 | スキルが呼ばれた時 | 5000トークン未満、500行未満 | 本文の全体を読む | 手順、例 |
+| ほかのファイル | 手順の中で要る時 | 目安なし | 要るファイルだけを読む | `references/` の資料 |
 
-```text
-lines: 3
-     3 the
-     1 brown
-     1 dog
-```
+## Anthropic の資料にある制約
 
-## 終了コード
+次の制約は、[Skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) にあり、仕様にはありません。
 
-| 値 | 意味 | 標準エラー出力 | 例 |
-| :-- | :-- | :-- | :-- |
-| `0` | 正常に終わった | なし | `wordfreq sample.txt` |
-| `2` | 引数が書式に合わない | `usage: wordfreq <FILE> [--top N]` | `wordfreq`、`wordfreq sample.txt --top x`、`wordfreq --top 3 sample.txt` |
-| `101` | ファイルを読めずに panic した | panic のメッセージ | `wordfreq nofile.txt` |
-
-終了コード `101` になる場合として、存在しないファイル、フォルダ、UTF-8 として読めないファイルの3つを確かめています。メッセージの全文は [issue-bug.md](issue-bug.md) にあります。
+| 項目 | 必須 | 制約 | 説明 | 例 |
+| :-- | :-- | :-- | :-- | :-- |
+| `name` | 必須 | XML のタグを含めない。`anthropic` と `claude` の語を含めない | 予約された語を避ける | `claude-tools` は使えない |
+| `description` | 必須 | XML のタグを含めない | 仕様と同じ1024文字の上限もある | — |
+| 参照ファイル | 任意 | 100行を超えるファイルは、先頭に目次を置く | 途中までしか読まれなくても、全体の範囲が分かる | `## Contents` |
 
 ## 共通の決まり
 
 | 項目 | 決まり | 説明 | 例 |
 | :-- | :-- | :-- | :-- |
-| 単語の区切り | 空白文字 | スペース、タブ、改行で区切る | `a b` は2語 |
-| 大文字と小文字 | 区別する | 別の単語として数える | `End` と `end` は別の単語 |
-| 句読点 | 単語の一部 | 取り除かずに数える | `end` と `end.` は別の単語 |
-| 並び順 | 回数の多い順 | 回数が同じ単語は、文字コードの小さい順に並べる | `END`、`End`、`end`、`end.` の順 |
-| `--top 0` | 単語を表示しない | `lines:` の行だけを出力する | `lines: 3` |
+| ファイルの参照 | スキルのルートからの相対パスで書く | 絶対パスは使わない | `references/REFERENCE.md` |
+| 参照の深さ | `SKILL.md` から1段までにする | 参照先のファイルから、さらに別のファイルを参照しない | `SKILL.md` → `references/a.md` |
+| パスの区切り | スラッシュを使う | Anthropic の資料にある決まり | `scripts/helper.py` |
+| 検査 | `skills-ref validate <フォルダ>` | frontmatter と名前の決まりを検査する。仕様が案内しているツール | `skills-ref validate ./my-skill` |

@@ -1,57 +1,38 @@
-# count_words の引数を参照に変え、文字列の複製をなくす
+# description をクォートで囲み、frontmatter を YAML として読める形にする
 
 ## 概要
 
-`count_words` が、ファイルの文字列を複製せずに借りて数えるように変えました。
-大きなファイルを数えるときの待ち時間を減らすための変更です。コマンドの引数と出力は変えていません。
+`SKILL.md` の `description` を、シングルクォートで囲みました。
+frontmatter を YAML として読めるようにして、skills CLI がこのスキルを検出できるようにする変更です。`description` の文面は変えていません。
 
 ## 背景
 
-変更前は、`main` がファイル全体の文字列を `clone` してから `count_words` に渡していました。
-`main` は、渡したあとで行数を数えるために、同じ文字列をもう一度使います。`clone` を外すと、所有権のエラー E0382 でコンパイルできませんでした。
-そのため、大きなファイルほど、複製の時間とメモリが余分にかかっていました。
+`description` の値に `次のときに使う: ` と `Do NOT use for: ` が含まれ、クォートなしで書かれていました。
+YAML では、値の中の `: ` が項目の区切りとして読まれます。そのため、frontmatter の読み込みがエラーになり、`npx skills add` はこのスキルを検出しませんでした。経緯は [issue-bug.md](issue-bug.md) にあります。
 
 ## 変更内容
 
-変更したファイルは `src/main.rs` だけです。
-
-- `count_words`: 引数を `String` から `&str` に変えた。戻り値のキーも `String` から `&str` に変え、単語ごとの文字列の生成をなくした
-- `rank`: 引数と戻り値の単語の型を `&str` に合わせた
-- `main`: `count_words(text.clone())` を `count_words(&text)` に変えた
-- テスト: 3件の引数と期待値を、新しい型に合わせた
+変更したのは `SKILL.md` の3行目だけです。`description` の値の前後に、シングルクォートを1つずつ足しました。
 
 ## 確認方法
 
-`cargo test` を実行し、3件とも通りました。
+次の2つを、変更の前後で実行しました。
 
-```text
-running 3 tests
-test tests::empty_text_has_no_words ... ok
-test tests::rank_orders_by_count_then_word ... ok
-test tests::counts_repeated_words ... ok
+| 確認 | 変更前 | 変更後 |
+| :-- | :-- | :-- |
+| PyYAML で frontmatter を読む | `ScannerError: mapping values are not allowed here` | `['name', 'description']` |
+| `npx -y skills add <対象> --list` | `No skills found` | `Found 1 skill` |
 
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-```
-
-手では、次の2つを確かめました。
-
-- `wordfreq sample.txt --top 3` の出力が、変更の前後で同じである
-- 27MB のファイルで、処理時間の中央値が 360ms から 202ms になった。条件と値は [report.md](report.md) にある
-
-`cargo clippy` は、警告を1件出します。内容は「レビューで見てほしい点」に書きました。
+実行したコマンドの全文は、[how-to.md](how-to.md) の手順1にあります。
+このリポジトリには、自動のテストがありません。上の2つは手で実行しました。
 
 ## 影響範囲
 
-コマンドの書式、出力の形式、終了コードは変わりません。
-ファイルを読めないときに panic する動き（[issue-bug.md](issue-bug.md)）にも触れていません。別の変更で直します。
+スキルの本文、ルール、テーマファイルには触れていません。
+Claude Code は、変更前の `SKILL.md` も読み込めていました。Claude Code での呼ばれ方が変わるかどうかは、確かめていません。
 
 ## レビューで見てほしい点
 
-`rank` に、ライフタイムの注釈 `'a` を書いています。
+囲み方に、シングルクォートを選びました。値の中に、シングルクォートが含まれていないためです。
 
-```rust
-fn rank<'a>(counts: HashMap<&'a str, usize>) -> Vec<(&'a str, usize)> {
-```
-
-clippy は、この注釈を省略できると警告します（`needless_lifetimes`）。
-戻り値の単語が引数の単語を借りていることを読み取りやすくするために、注釈を残しました。省略する形にそろえるほうがよければ、指摘してください。
+長い値を複数の行に分ける書き方（`>-`）は、試していません。`description` は、長い1行のままです。行を分ける書き方にそろえるほうがよければ、指摘してください。

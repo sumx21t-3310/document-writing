@@ -1,66 +1,63 @@
-# 存在しないファイルを渡すと panic し、原因を読み取りにくいメッセージが出る
+# SKILL.md の frontmatter を YAML として読めず、npx skills add でスキルが見つからない
 
 ## 概要
 
-`wordfreq` に存在しないファイルのパスを渡すと、panic して終了コード 101 で終わります。
-表示されるメッセージは Rust の内部の値をそのまま出した形で、利用者が「ファイルがない」と読み取るのに時間がかかります。
+コミット `b7ad31a` の `SKILL.md` を `npx skills add` に渡すと、スキルが検出されません。
+frontmatter の `description` を、YAML として読めないためです。
 
 ## 期待した動き
 
-- ファイルを読めなかったことと、渡したパスが、1行のメッセージで分かること
-- panic せずに終わること
+`npx skills add` が `Found 1 skill` と表示し、`document-writing` を一覧に出すこと。
 
 ## 実際の動き
 
-標準エラー出力に次の3行が出て、終了コード 101 で終わります。`(14880)` の数字は、実行のたびに変わります。
+次の警告が出て、`No skills found` で終わります。フォルダのパスは `<作業フォルダ>` に置き換えています。
 
 ```text
-thread 'main' (14880) panicked at src\main.rs:40:41:
-called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, message: "指定されたファイルが見つかりません。" }
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+⚠ Skipped <作業フォルダ>\document-writing\SKILL.md — YAML parse error: Nested mappings are not allowed in compact mappings at line 2, column 14:
+description: ドキュメントを設計してから執筆する。次のときに使う: 「手順書を書いて」「PRを作成して」「issueを書いて」「文章を執筆して」「…
+             ^
+◇  No skills found
+│
+└  No valid skills found. Skills require a SKILL.md with name and description.
 ```
 
 ## 再現手順
 
-1. このリポジトリの `samples/wordfreq` フォルダへ移動する
-2. `cargo build --release` を実行する
-3. `nofile.txt` という名前のファイルが、フォルダにないことを確かめる
-4. `cargo run -q --release -- nofile.txt` を実行する
+1. このリポジトリを clone し、リポジトリのフォルダへ移動する
+2. 空の作業フォルダを作り、その中に `document-writing` フォルダを作る
+3. `git show b7ad31a:SKILL.md` の出力を、手順2の `document-writing` フォルダに `SKILL.md` として保存する
+4. 作業フォルダへ移動し、`npx -y skills add ./document-writing --list` を実行する
 
-5回試して、5回とも同じ動きになりました。
+2回試して、2回とも同じ動きになりました。
 
 ## 環境
 
 | 項目 | 値 |
 | :-- | :-- |
-| wordfreq | 0.1.0 |
-| Rust | 1.95.0 |
+| document-writing | コミット `b7ad31a` |
+| skills CLI | 1.7.0 |
+| Node.js | 24.15.0 |
 | OS | Windows 11 |
 
 ## 影響範囲と回避策
 
-ファイルのパスを打ち間違えた利用者の全員が、このメッセージを見ます。
-スクリプトから呼ぶ人は、終了コード 101 を「ファイルを読めなかった」と判定することになります。
+`npx skills add` でこのスキルを入れようとした人の全員が、スキルを入れられません。
+Claude Code は、同じ `SKILL.md` を読み込めていました。`git clone` でスキルのフォルダに入れた Claude Code の利用者には、影響がありません。Claude Code 以外のエージェントで読めるかどうかは、確かめていません。
 
-回避策は、実行する前に、ファイルがあることを確かめることです。
-
-同じ動きは、フォルダのパスを渡したときと、UTF-8 として読めないファイルを渡したときにも起きます。どちらも終了コードは 101 で、メッセージの2行目だけが次のように変わります。
-
-```text
-called `Result::unwrap()` on an `Err` value: Os { code: 5, kind: PermissionDenied, message: "アクセスが拒否されました。" }
-```
-
-```text
-called `Result::unwrap()` on an `Err` value: Error { kind: InvalidData, message: "stream did not contain valid UTF-8" }
-```
+回避策は、`git clone` で入れることです。
 
 ## 原因
 
-メッセージが指している `src/main.rs` の40行目は、次のコードです。
+PyYAML で同じ frontmatter を読むと、次のエラーになります。
 
-```rust
-    let text = fs::read_to_string(path).unwrap();
+```text
+yaml.scanner.ScannerError: mapping values are not allowed here
+  in "<unicode string>", line 3, column 39:
+     ... ption: ドキュメントを設計してから執筆する。次のときに使う: 「手順書を書いて」「PRを作成して」「issueを書いて」「 ... 
+                                         ^
 ```
 
-ここからは推測です。`unwrap` は、読み込みが失敗すると panic します。失敗したときの処理を書いていないことが原因だと考えられます。
-直し方の方針は、[決定の記録](decision.md) にあります。
+`^` が指しているのは、`次のときに使う: ` の `:` です。
+
+ここからは推測です。`description` の値がクォートで囲まれていないので、値の中の `: ` が、項目の区切りとして読まれたと考えられます。直し方は [how-to.md](how-to.md) にあります。

@@ -1,134 +1,84 @@
-# 所有権のエラー E0382 を、参照を渡す形に直す
+# SKILL.md の frontmatter を、YAML として読める形に直す
 
-関数に渡した値を、呼び出しのあとでもう一度使うと、Rust のコンパイラは E0382 を出します。
-この手順では、関数の引数を参照に変えて、E0382 を消します。関数が値を読むだけの場合に使えます。
+`SKILL.md` の frontmatter を YAML として読めないと、skills CLI はスキルを検出しません。
+この手順では、`description` をクォートで囲み、frontmatter を YAML として読める形に直します。
 
 ## この手順でできること
 
-手順を終えると、`cargo run` が通ります。関数に渡した値を、呼び出しのあとでも使えます。
+手順を終えると、frontmatter の検査が通り、`npx skills add` がスキルを検出します。
 
 ## 前提条件
 
-- Rust がインストールされていること。この手順は Rust 1.95.0 で確かめている
-- エラーの1行目が `error[E0382]: borrow of moved value` であること
-- エラーの中に `consider changing this parameter type in function` で始まる `note` があること
-- 関数が、受け取った値を読むだけであること。値を保存したり、そのまま返したりする関数は対象外である
-- 関数のソースコードを編集できること
+- [uv](https://docs.astral.sh/uv/) と Node.js がインストールされていること。この手順は Node.js 24.15.0 と skills CLI 1.7.0 で確かめている
+- `SKILL.md` の frontmatter に、`: `（コロンと空白）を含む値が、クォートなしで書かれていること
+- `SKILL.md` を編集できること
 
-この手順では、次のコードを例にします。`shout` は、受け取った文字列を大文字にして返す関数です。
+この手順では、次の frontmatter を例にします。`description` の値に `次のときに使う: ` と `Do NOT use for: ` が含まれています。
 
-```rust
-fn shout(text: String) -> String {
-    text.to_uppercase()
-}
-
-fn main() {
-    let name = String::from("ferris");
-    let loud = shout(name);
-    println!("{name} -> {loud}");
-}
+```markdown
+---
+name: document-writing
+description: ドキュメントを設計してから執筆する。次のときに使う: 「手順書を書いて」「PRを作成して」「issueを書いて」「文章を執筆して」「作業報告をまとめて」「提案書を書いて」「この文書を添削して」と頼まれた、README・設計メモ・仕様・調査報告・紹介記事を書く、既存の文書を書き直す・添削する。Do NOT use for: コミットメッセージ、コード内コメント、UI 文言、3 行以内の連絡。エラーメッセージ・スタックトレース・取り消せない操作の確認は要約せず全文を示す対象のため、このスキルで書き直さない。
+---
 ```
 
-`cargo run` を実行すると、次のエラーが出ます。
+## 手順1: frontmatter を検査する
+
+`SKILL.md` があるフォルダで、次のコマンドを実行します。frontmatter を YAML として読み、項目の名前を表示するコマンドです。
+
+```bash
+uv run -q --with pyyaml python -c "import sys,yaml; print(list(yaml.safe_load(open(sys.argv[1],encoding='utf-8').read().split('---')[1])))" SKILL.md
+```
+
+読めない frontmatter では、出力の最後が次のエラーになります。
 
 ```text
-error[E0382]: borrow of moved value: `name`
- --> src\main.rs:8:16
-  |
-6 |     let name = String::from("ferris");
-  |         ---- move occurs because `name` has type `String`, which does not implement the `Copy` trait
-7 |     let loud = shout(name);
-  |                      ---- value moved here
-8 |     println!("{name} -> {loud}");
-  |                ^^^^ value borrowed here after move
-  |
-note: consider changing this parameter type in function `shout` to borrow instead if owning the value isn't necessary
- --> src\main.rs:1:16
-  |
-1 | fn shout(text: String) -> String {
-  |    -----       ^^^^^^ this parameter takes ownership of the value
-  |    |
-  |    in this function
-help: consider cloning the value if the performance cost is acceptable
-  |
-7 |     let loud = shout(name.clone());
-  |                          ++++++++
-
-For more information about this error, try `rustc --explain E0382`.
-error: could not compile `shout` (bin "shout") due to 1 previous error
+yaml.scanner.ScannerError: mapping values are not allowed here
+  in "<unicode string>", line 3, column 39:
+     ... ption: ドキュメントを設計してから執筆する。次のときに使う: 「手順書を書いて」「PRを作成して」「issueを書いて」「 ... 
+                                         ^
 ```
 
-## 手順1: エラーから、直す関数を読み取る
+## 手順2: エラーから、直す行を読み取る
 
-エラーの `note` にある `in this function` の行を探します。その行が指している関数が、直す対象です。
-例では、1行目の `shout` です。
+エラーの `line` の数字が、`SKILL.md` の行番号です。例では3行目の `description` です。
+`^` は、値の中にある `: ` の位置を指しています。
 
-あわせて、次の3か所を読むと、何が起きたかが分かります。
+## 手順3: 値の全体を、シングルクォートで囲む
 
-- `move occurs because`: 値を持っている変数（6行目の `name`）
-- `value moved here`: 値が関数へ移った場所（7行目）
-- `value borrowed here after move`: 移ったあとで値を使った場所（8行目）
+手順2で見つけた行の値を、先頭から末尾までシングルクォートで囲みます。値の文面は変えません。
 
-## 手順2: 関数の引数の型を、参照に変える
-
-手順1で見つけた関数の引数の型を、`String` から `&str` に書き換えます。
-
-```rust
-fn shout(text: &str) -> String {
-    text.to_uppercase()
-}
+```markdown
+---
+name: document-writing
+description: 'ドキュメントを設計してから執筆する。次のときに使う: 「手順書を書いて」「PRを作成して」「issueを書いて」「文章を執筆して」「作業報告をまとめて」「提案書を書いて」「この文書を添削して」と頼まれた、README・設計メモ・仕様・調査報告・紹介記事を書く、既存の文書を書き直す・添削する。Do NOT use for: コミットメッセージ、コード内コメント、UI 文言、3 行以内の連絡。エラーメッセージ・スタックトレース・取り消せない操作の確認は要約せず全文を示す対象のため、このスキルで書き直さない。'
+---
 ```
 
-この時点で `cargo build` を実行すると、E0382 が消え、代わりに呼び出しの行を指す E0308 が出ます。
+## 手順4: もう一度検査する
+
+手順1と同じコマンドを実行します。項目の名前が表示されれば、YAML として読めています。
 
 ```text
-error[E0308]: mismatched types
- --> src\main.rs:7:22
-  |
-7 |     let loud = shout(name);
-  |                ----- ^^^^ expected `&str`, found `String`
-  |                |
-  |                arguments to this function are incorrect
-  |
-note: function defined here
- --> src\main.rs:1:4
-  |
-1 | fn shout(text: &str) -> String {
-  |    ^^^^^ ----------
-help: consider borrowing here
-  |
-7 |     let loud = shout(&name);
-  |                      +
-
-For more information about this error, try `rustc --explain E0308`.
-error: could not compile `shout` (bin "shout") due to 1 previous error
-```
-
-## 手順3: 呼び出しで、値の前に `&` を付ける
-
-E0308 が指している呼び出しを、`shout(name)` から `shout(&name)` に書き換えます。
-
-```rust
-    let loud = shout(&name);
+['name', 'description']
 ```
 
 ## 結果を確かめる
 
-`cargo run` を実行します。
+スキルのフォルダの1つ上のフォルダで、次のコマンドを実行します。`<フォルダ名>` は、スキルのフォルダの名前に置き換えます。
 
 ```bash
-cargo run
+npx -y skills add ./<フォルダ名> --list
 ```
 
-エラーが出ずに、次の行が表示されれば終わりです。
+出力に次の行が含まれていれば終わりです。
 
 ```text
-ferris -> FERRIS
+◇  Found 1 skill
 ```
 
 ## うまくいかないとき
 
-手順2のあとで、関数の中を指す別のエラーが出たときは、関数が値を保存しているか、そのまま返しています。
-その関数は、この手順の対象外です。[所有権の解説](explanation.md) を読み、値をどの変数に持たせるかを決め直してください。
+手順4で同じエラーが別の行に出たときは、その行の値にも `: ` が含まれています。その行について、手順2からもう一度進めてください。
 
-別の行を指す E0382 が残っているときは、同じ値を渡している関数がほかにもあります。残ったエラーについて、手順1からもう一度進めてください。
+値の中にシングルクォートが含まれているときは、手順3のあとで別のエラーが出ます。YAML では、シングルクォートで囲んだ値の中のシングルクォートを `''` と2つ重ねて書きます。この場合の動きは、この手順では確かめていません。

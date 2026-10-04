@@ -1,72 +1,61 @@
-# 調査報告: wordfreq の引数を参照に変えた前後の処理時間
+# 調査報告: document-writing を npx skills add で入れられるか
 
 ## 概要
 
-`count_words` の引数を `String` から `&str` に変えると、27MB のファイルを数える時間が 360ms から 202ms になりました。値は10回の計測の中央値です。
-大きなログを数える人は、変更前の 6 割ほどの待ち時間で結果を得られます。出力は、変更の前後で同じでした。
+`document-writing` は、`npx skills add` で入れられます。リポジトリのルートに `SKILL.md` を置くいまの構成のままで検出され、16個のファイルがコピーされました。
+frontmatter を直す前の版は、検出されませんでした。利用者は、README にある1行のコマンドでスキルを入れられます。
 
 ## 背景
 
-変更前の `wordfreq` は、ファイル全体の文字列を複製してから `count_words` に渡していました。単語を数えるときにも、単語ごとに新しい文字列を作っていました。
-この2つをなくす変更（[pull-request.md](pull-request.md)）で、処理時間がどれだけ変わるかは分かっていませんでした。
+2026-10-05 に、`document-writing` を GitHub に公開しました。公開した時点の README は、`git clone` で入れる手順だけを案内していました。
+skills CLI の `npx skills add` で入れられるか、入れるためにフォルダの構成を変える作業が要るかは、分かっていませんでした。
 
 ## 方法
 
-変更前と変更後の実行ファイルで同じファイルを数え、プロセスの開始から終了までの時間を比べました。
+skills CLI に、スキルの検出とインストールをさせ、出力とコピーされたファイルを確かめました。
 
 | 項目 | 内容 |
 | :-- | :-- |
-| 入力 | 27,111,048 バイト、400,000 行、4,000,000 語のテキスト。単語は 50,000 種類 |
-| 入力の作り方 | 50,000 種類の単語から、乱数で10語ずつ選んで1行にする。乱数の種は 1 に固定した |
-| ビルド | 両方とも `cargo build --release` |
-| 実行したコマンド | `wordfreq big.txt --top 1` |
-| 時間の測り方 | Python の `time.perf_counter` で、プロセスの開始前と終了後の差を取る |
-| 回数 | 11回続けて実行し、1回目を捨てて、残りの10回を使う |
-| 環境 | Windows 11、Rust 1.95.0、AMD の CPU（AMD64 Family 25 Model 33） |
-
-変更前の該当箇所は、次のとおりです。変更後のコードは [wordfreq/src/main.rs](wordfreq/src/main.rs) にあります。
-
-```rust
-fn count_words(text: String) -> HashMap<String, usize> {
-    let mut counts = HashMap::new();
-    for word in text.split_whitespace() {
-        *counts.entry(word.to_string()).or_insert(0) += 1;
-    }
-    counts
-}
-
-// main の中の呼び出し
-let counts = count_words(text.clone());
-```
+| 環境 | Windows 11、Node.js 24.15.0、skills CLI 1.7.0 |
+| 対象1 | 公開したリポジトリ `sumx21t-3310/document-writing` の `main` |
+| 対象2 | frontmatter を直す前のコミット `b7ad31a` の `SKILL.md` を、手元のフォルダに取り出したもの |
+| 検出のコマンド | `npx -y skills add <対象> --list` |
+| インストールのコマンド | 空のフォルダで `npx -y skills add sumx21t-3310/document-writing -a claude-code -y` |
+| ファイルの確かめ方 | インストールしたフォルダのファイルを一覧にして数える |
 
 ## 結果
 
-| 版 | 10回の値（ms） | 中央値（ms） |
+| 対象 | 操作 | 結果 |
 | :-- | :-- | :-- |
-| 変更前 | 373, 359, 360, 364, 359, 360, 364, 360, 357, 378 | 360 |
-| 変更後 | 200, 203, 204, 201, 204, 201, 203, 202, 202, 202 | 202 |
+| 公開したリポジトリ | 検出 | `Found 1 skill`。`document-writing` と `description` が表示された |
+| 公開したリポジトリ | インストール | `✓ document-writing (copied)`。`.claude/skills/document-writing` に16個のファイルができた |
+| 直す前の `SKILL.md` | 検出 | `No skills found`。YAML を読めないという警告が出た |
 
-出力は、どちらの版も次の2行でした。
+コピーされた16個は、`SKILL.md`、`README.md`、`LICENSE`、`rules/common.md`、`locales/ja.md`、`reference/themes/` の YAML 11個です。インストールしたフォルダには、ほかに `skills-lock.json` ができました。
+
+直す前の `SKILL.md` で出た警告は、次のとおりです。フォルダのパスは `<作業フォルダ>` に置き換えています。
 
 ```text
-lines: 400000
-   121 w7816
+⚠ Skipped <作業フォルダ>\document-writing\SKILL.md — YAML parse error: Nested mappings are not allowed in compact mappings at line 2, column 14:
+description: ドキュメントを設計してから執筆する。次のときに使う: 「手順書を書いて」「PRを作成して」「issueを書いて」「文章を執筆して」「…
+             ^
+◇  No skills found
+│
+└  No valid skills found. Skills require a SKILL.md with name and description.
 ```
 
 ## 考察
 
-変更でなくなった処理は2つあります。27MB の文字列の複製が1回と、単語ごとの文字列の生成が 4,000,000 回です。
-中央値の差の 158ms は、この2つをなくした結果だと考えられます。2つのうち、どちらが大きく効いたかは計測していません。
-
-変更後の10回は 200ms から 204ms の間に収まり、変更前の最も短い 357ms を下回りました。計測のばらつきで説明できる差ではありません。
+skills CLI は、frontmatter を YAML として読めた `SKILL.md` だけを、スキルとして扱うと考えられます。2つの対象の違いは、`description` をクォートで囲んだかどうかだけでした。
+この結果を受けて、README の「インストール」に `npx skills add` の手順を足しました（コミット `18de589`）。フォルダの構成を変える作業は要りません。ルートに `SKILL.md` がある構成で、検出もインストールもできました。
 
 ## 実行しなかった項目
 
-- メモリの使用量の計測。時間の比較を先にしたため
-- Windows 以外の OS での計測。手元に環境がなかったため
-- 小さなファイル（数 KB）での計測。待ち時間が問題になる大きさを先に調べたため
-- 2つの処理を1つずつ戻した版の計測。どちらが効いたかは、今回の目的に入れていないため
+- インストールしたスキルを、エージェントが読み込んで動かすことの確認。CLI の動きを先に確かめたため
+- Claude Code 以外のエージェントを選んだインストール。手元で使うエージェントを先に確かめたため
+- 人が手で実行したときの、選択肢の画面の確認。確認の質問を省く `-y` を付けて実行したため
+- [skills.sh](https://www.skills.sh/) の一覧に載るかどうかの確認。載る条件を調べていないため
 
 ## 次の作業
 
-メモリの使用量を、同じ入力で変更の前後に計測します。
+インストールしたスキルを、エージェントが読み込んで動かすことを確かめます。

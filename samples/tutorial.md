@@ -1,154 +1,106 @@
-# Rust で最初のコマンドを作る: ファイルの行数を数える
+# 最初のスキルを作り、プロジェクトに入れる
 
-このチュートリアルでは、ファイルの行数を表示するコマンド `linecount` を Rust で作ります。
-Rust を初めて使う人が対象です。ターミナルでコマンドを実行できれば、最後まで進められます。
+このチュートリアルでは、リリースノートを書くスキル `release-note` を作り、プロジェクトに入れます。
+スキルを初めて作る人が対象です。ターミナルでコマンドを実行できれば、最後まで進められます。
 
 ## このチュートリアルで作るもの
 
-完成すると、ファイル名を渡して行数を表示できます。
+完成すると、プロジェクトのフォルダに次のファイルができます。Claude Code は、このフォルダにあるスキルを読み込みます。
 
 ```text
-memo.txt: 3 行
+.claude/skills/release-note/SKILL.md
 ```
 
 作りながら、次の3つを覚えます。
 
-- `cargo new` でプロジェクトを作る
-- `cargo run` でプログラムを動かす
-- ファイルを読み、コマンドの引数を受け取る
+- スキルのフォルダと `SKILL.md` を作る
+- `SKILL.md` の先頭に、名前と説明を書く
+- skills CLI で、スキルを検出してプロジェクトに入れる
 
 ## 準備
 
-Rust を [公式サイトの手順](https://www.rust-lang.org/tools/install) でインストールします。
-終わったら、ターミナルで次のコマンドを実行します。
+[Node.js](https://nodejs.org/) をインストールし、ターミナルで `npx` を使える状態にします。
+この手順は、Node.js 24.15.0 と skills CLI 1.7.0 で確かめています。
 
-```bash
-cargo --version
+## 手順1: スキルのフォルダと SKILL.md を作る
+
+作業用のフォルダ `work` を作り、その中に `release-note` フォルダを作ります。
+`release-note` フォルダの中に `SKILL.md` を作り、次の内容を書いて保存します。
+
+```markdown
+---
+name: release-note
+description: '変更の一覧からリリースノートを書く。リリースノート、変更履歴、CHANGELOG を頼まれたときに使う。'
+---
+# リリースノートを書く
+
+1. 変更の一覧を、追加・変更・修正の3つに分ける
+2. 利用者に影響する変更を先に並べる
+3. 1つの変更を1行で書く
 ```
 
-バージョンが表示されれば、準備は終わりです。この手順は、次のバージョンで確かめています。
+`---` で囲んだ先頭の部分を frontmatter と呼びます。`name` はフォルダ名と同じ文字列にします。`description` には、スキルがすることと、使う場面を書きます。
+
+フォルダの中は、次の形になっています。
 
 ```text
-cargo 1.95.0 (f2d3ce0bd 2026-03-21)
+work/
+└── release-note/
+    └── SKILL.md
 ```
 
-## 手順1: プロジェクトを作る
+## 手順2: スキルが検出されることを確かめる
 
-`cargo` は、Rust のプロジェクトを作り、ビルドし、実行する道具です。次のコマンドでプロジェクトを作ります。
+ターミナルで `work` フォルダへ移動し、次のコマンドを実行します。`--list` を付けると、検出の結果を表示するだけで、どこにも入れません。
 
 ```bash
-cargo new linecount
+npx -y skills add ./release-note --list
 ```
 
-次の行が表示されれば、`linecount` フォルダができています。
+出力に次の行が含まれていれば、スキルとして検出されています。
 
 ```text
-    Creating binary (application) `linecount` package
+◇  Found 1 skill
+│
+◇  Available Skills
+│
+│    release-note
+│
+│      変更の一覧からリリースノートを書く。リリースノート、変更履歴、CHANGELOG を頼まれたときに使う。
 ```
 
-できたフォルダへ移動します。
+## 手順3: プロジェクトに入れる
+
+スキルを使うプロジェクトのフォルダを用意します。ここでは、`work` の隣に空のフォルダ `proj` を作ります。
+ターミナルで `proj` フォルダへ移動し、次のコマンドを実行します。
 
 ```bash
-cd linecount
+npx -y skills add ../work/release-note -a claude-code -y
 ```
 
-フォルダの中には、設定を書く `Cargo.toml` と、プログラムを書く `src/main.rs` があります。
-
-## 手順2: そのまま動かす
-
-`cargo new` は、あいさつを表示するプログラムを最初から用意しています。何も書き換えずに実行します。
-
-```bash
-cargo run
-```
-
-出力の最後の2行が次のようになれば、ビルドと実行ができています。`Running` の行は Windows での表示です。
+`-a claude-code` で、入れる先のエージェントに Claude Code を選びます。最後の `-y` で、確認の質問を省きます。
+出力に次の2行が含まれていれば、スキルが入っています。
 
 ```text
-     Running `target\debug\linecount.exe`
-Hello, world!
+│  ✓ release-note (copied)                                                     │
+└  Done!  Review skills before use; they run with full agent permissions.
 ```
 
-## 手順3: ファイルの行数を数える
+## 完成したものを確かめる
 
-数える対象のファイルを用意します。`linecount` フォルダの直下に `memo.txt` を作り、次の3行を書いて保存します。
+`proj` フォルダの中を見ます。次の2つのファイルができていれば完成です。
 
 ```text
-apple
-banana
-cherry
+.claude/skills/release-note/SKILL.md
+skills-lock.json
 ```
 
-`src/main.rs` の中身を、次のコードにすべて置き換えます。
+`.claude/skills/release-note/SKILL.md` を開くと、手順1で書いた内容がそのまま入っています。
 
-```rust
-use std::fs;
-
-fn main() {
-    let text = fs::read_to_string("memo.txt").expect("memo.txt を読めませんでした");
-    println!("{} 行", text.lines().count());
-}
-```
-
-`fs::read_to_string` で、ファイルの中身を文字列として読み込みます。`text.lines().count()` で、その文字列の行数を数えます。
-もう一度実行します。
-
-```bash
-cargo run
-```
-
-最後の行に行数が表示されます。
-
-```text
-3 行
-```
-
-## 手順4: ファイル名を引数で受け取る
-
-ここまでのプログラムは、`memo.txt` しか数えられません。ファイル名をコマンドの引数で受け取る形に変えます。
-`src/main.rs` を、次のコードにすべて置き換えます。
-
-```rust
-use std::env;
-use std::fs;
-
-fn main() {
-    let path = env::args().nth(1).expect("ファイル名を指定してください");
-    let text = fs::read_to_string(&path).expect("ファイルを読めませんでした");
-    println!("{path}: {} 行", text.lines().count());
-}
-```
-
-`env::args().nth(1)` で、コマンドの1つ目の引数を取り出します。`&path` の `&` の意味は、あとで [解説](explanation.md) を読むと分かります。ここではそのまま書き写してください。
-
-ファイル名を付けて実行します。`--` より後ろが、プログラムに渡す引数です。
-
-```bash
-cargo run -- memo.txt
-```
-
-最後の行に、ファイル名と行数が表示されます。
-
-```text
-memo.txt: 3 行
-```
-
-## 完成したものを動かす
-
-別のファイルでも数えられることを確かめます。プロジェクトの `Cargo.toml` を渡します。
-
-```bash
-cargo run -- Cargo.toml
-```
-
-次の行が表示されれば完成です。
-
-```text
-Cargo.toml: 6 行
-```
+このチュートリアルでは、エージェントがこのスキルを実際に呼ぶところまでは確かめていません。
 
 ## 次に読むもの
 
-- [所有権: Rust が値の持ち主を1つに決める理由](explanation.md): 手順4の `&` の意味を説明している
-- [所有権のエラー E0382 を、参照を渡す形に直す](how-to.md): コードを書き換えていて、最初に出会いやすいエラーの直し方
-- [The Rust Programming Language](https://doc.rust-lang.org/book/): Rust の公式の入門書
+- [SKILL.md の frontmatter の項目と、分量の目安](reference.md): `name` と `description` に書ける文字と長さ
+- [description が、スキルが呼ばれるかどうかを決める理由](explanation.md): 手順1の `description` の役割
+- [SKILL.md の frontmatter を、YAML として読める形に直す](how-to.md): 手順2でスキルが検出されなかったときの直し方
